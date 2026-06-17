@@ -87,3 +87,117 @@ def validar_contraccion(
         )
 
     return True
+def generar_indices_resultantes(
+    tensor_a: Tensor,
+    tensor_b: Tensor,
+    posicion_a: int,
+    posicion_b: int,
+):
+    """
+    Genera la lista de índices del tensor resultante después
+    de una contracción.
+
+    No realiza ninguna suma de Einstein.
+    Únicamente elimina los dos índices contraídos y conserva
+    el resto en el orden correcto.
+
+    Ejemplo
+    -------
+    A^(μ)_(ν)  ×  B^(ν)_(α)
+
+    produce
+
+    C^(μ)_(α)
+    """
+
+    indices_resultantes = []
+
+    # Índices del primer tensor
+    for indice, estructura in enumerate(tensor_a.indices):
+        if indice != posicion_a:
+            indices_resultantes.append(estructura)
+
+    # Índices del segundo tensor
+    for indice, estructura in enumerate(tensor_b.indices):
+        if indice != posicion_b:
+            indices_resultantes.append(estructura)
+
+    return indices_resultantes
+
+def contraer(
+    tensor_a: Tensor,
+    tensor_b: Tensor,
+    posicion_a: int,
+    posicion_b: int,
+):
+    """
+    Ejecuta la contracción de Einstein entre dos tensores.
+
+    Parámetros
+    ----------
+    tensor_a : Tensor
+
+    tensor_b : Tensor
+
+    posicion_a : int
+        Índice del primer tensor que será contraído.
+
+    posicion_b : int
+        Índice del segundo tensor que será contraído.
+
+    Retorna
+    -------
+    Tensor
+        Tensor resultante de la contracción.
+    """
+
+    validar_contraccion(
+        tensor_a,
+        tensor_b,
+        posicion_a,
+        posicion_b,
+    )
+
+    indices_resultantes = generar_indices_resultantes(
+        tensor_a,
+        tensor_b,
+        posicion_a,
+        posicion_b,
+    )
+
+    componentes_resultantes = defaultdict(lambda: 0)
+
+    dimension = tensor_a.dimension
+
+    for clave_a, valor_a in tensor_a.componentes.items():
+
+        for clave_b, valor_b in tensor_b.componentes.items():
+
+            # Deben coincidir en el índice contraído
+            if clave_a[posicion_a] != clave_b[posicion_b]:
+                continue
+
+            nueva_clave = []
+
+            # Conservamos todos los índices del tensor A
+            for indice, componente in enumerate(clave_a):
+                if indice != posicion_a:
+                    nueva_clave.append(componente)
+
+            # Conservamos todos los índices del tensor B
+            for indice, componente in enumerate(clave_b):
+                if indice != posicion_b:
+                    nueva_clave.append(componente)
+
+            nueva_clave = tuple(nueva_clave)
+
+            componentes_resultantes[nueva_clave] += (
+                valor_a * valor_b
+            )
+
+    return Tensor(
+        nombre=f"{tensor_a.nombre}_{tensor_b.nombre}",
+        componentes=dict(componentes_resultantes),
+        indices=indices_resultantes,
+        dimension=dimension,
+    )
