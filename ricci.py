@@ -1,8 +1,10 @@
 """
 ricci.py
-=========
+========
 
-Construcción del tensor de Ricci a partir del tensor de Riemann.
+Construcción del Tensor de Ricci a partir del Tensor de Riemann.
+
+R_{μν} = R^α_{μαν}
 
 Autor:
     Elvis Omar Nazario Espinoza
@@ -11,61 +13,93 @@ Proyecto:
     Motor de Geometría Diferencial (MGD)
 """
 
-from tensor import Tensor
+import sympy as sp
+
+from nucleo.tensor import Tensor
 from riemann import Riemann
 
 
 class Ricci(Tensor):
     """
-    Tensor de Ricci.
-
-    Se obtiene mediante la contracción
+    Tensor de Ricci obtenido por contracción del
+    tensor de Riemann.
 
         R_{μν} = R^α_{μαν}
-
-    del tensor de Riemann.
     """
 
-    def __init__(self, variedad):
+    def __init__(self, riemann):
+
+        if not isinstance(riemann, Riemann):
+            raise TypeError(
+                "Se esperaba un objeto Riemann."
+            )
+
+        self.riemann = riemann
+
+        variedad = riemann.variedad
+        dim = variedad.dimension
+
+        componentes = {}
+
+        #
+        # Contracción:
+        #
+        # R_{μν} = Σ_α R^α_{μαν}
+        #
+        for mu in range(dim):
+            for nu in range(dim):
+
+                suma = 0
+
+                for alpha in range(dim):
+
+                    suma += riemann[
+                        alpha,
+                        mu,
+                        alpha,
+                        nu
+                    ]
+
+                suma = sp.simplify(suma)
+
+                if suma != 0:
+                    componentes[(mu, nu)] = suma
+
         super().__init__(
             nombre="Ricci",
             variedad=variedad,
+            componentes=componentes,
             indices=[
                 ("μ", "abajo"),
                 ("ν", "abajo"),
             ],
         )
 
-    @classmethod
-    def desde_riemann(cls, riemann):
+    # --------------------------------------------------
+    # Traza
+    # --------------------------------------------------
+
+    def es_nulo(self):
         """
-        Construye el tensor de Ricci contrayendo
-        el primer índice superior con el segundo
-        índice inferior del tensor de Riemann.
-
-        Parámetros
-        ----------
-        riemann : Riemann
-
-        Retorna
-        -------
-        Ricci
+        Devuelve True si todas las componentes son cero.
         """
 
-        if not isinstance(riemann, Riemann):
-            raise TypeError(
-                "Se esperaba un objeto de tipo Riemann."
-            )
+        return len(self.componentes) == 0
 
-        ricci = cls(riemann.variedad)
+    # --------------------------------------------------
+    # Acceso
+    # --------------------------------------------------
 
-        # Contracción:
-        #
-        # R_{μν} = R^α_{μαν}
-        #
-        # El método contraer() será el responsable
-        # de realizar la suma de Einstein.
-        return riemann.contraer(
-            posicion_propia=0,
-            posicion_otra=1
+    def __getitem__(self, clave):
+        return super().__getitem__(clave)
+
+    # --------------------------------------------------
+    # Representación
+    # --------------------------------------------------
+
+    def __repr__(self):
+        return (
+            f"Ricci("
+            f"dimension={self.dimension}, "
+            f"componentes={len(self.componentes)})"
         )
