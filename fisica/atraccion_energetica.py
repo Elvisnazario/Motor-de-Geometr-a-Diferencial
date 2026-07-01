@@ -17,12 +17,33 @@ Autor:
 
 import numpy as np
 
-from constantes.fisicas import (
-    G,
-    c,
-    l_planck,
-    m_planck,
-)
+# 1. IMPORTACIÓN DEL ADMINISTRADOR EXCLUSIVO DE TU ARQUITECTURA
+from constantes.parametros_fundamentales import ParametrosFundamentales
+
+# 2. INICIALIZACIÓN Y REGISTRO DE CONSTANTES UNIVERSALES
+# Usamos tu clase gestora para centralizar la física del universo
+registro = ParametrosFundamentales()
+
+# Constantes Fundamentales (Valores CODATA de alta precisión)
+registro.registrar("G", valor=6.67430e-11, descripcion="Constante de gravitación universal")
+registro.registrar("c", valor=299792458, descripcion="Velocidad de la luz en el vacío")
+registro.registrar("hbar", valor=1.054571817e-34, descripcion="Constante de Planck reducida")
+
+# Extracción de valores base mediante tus métodos nativos para el cálculo numérico
+G = registro.valor("G")
+c = registro.valor("c")
+hbar = registro.valor("hbar")
+
+# Parámetros derivados en la escala cuántica de Planck
+l_planck_num = (hbar * G / c**3)**0.5
+m_planck_num = (hbar * c / G)**0.5
+
+# Registro oficial de los parámetros derivados dentro de tu administrador
+registro.registrar("l_planck", valor=l_planck_num, descripcion="Longitud de Planck")
+registro.registrar("m_planck", valor=m_planck_num, descripcion="Masa de Planck")
+
+l_planck = registro.valor("l_planck")
+m_planck = registro.valor("m_planck")
 
 
 # ----------------------------------------------------------
