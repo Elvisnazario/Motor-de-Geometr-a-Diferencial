@@ -1,6 +1,6 @@
 """
-geodesicas_disformes.py
-=======================
+experimentos/geodesicas_disformes.py
+===================================
 
 Experimento 2 del Motor de Geometría Diferencial.
 
@@ -40,6 +40,9 @@ L = 4.5e12
 
 TIEMPO_FINAL = 6000
 
+# Delta para el cálculo de la derivada numérica espacial de la métrica
+DR = 1.0  # incremento de 1 metro para diferencias finitas
+
 # ----------------------------------------------------------
 # Geodésica Schwarzschild
 # ----------------------------------------------------------
@@ -51,21 +54,17 @@ def geodesica_schwarzschild(
 
     r, vr = y
 
-    f = f_schwarzschild(
-        MASA_SOL,
-        r,
-    )
+    # Derivada numérica de la métrica usando diferencias finitas centrales
+    f_mas = f_schwarzschild(MASA_SOL, r + DR)
+    f_menos = f_schwarzschild(MASA_SOL, r - DR)
+    df_dr = (f_mas - f_menos) / (2.0 * DR)
 
-    ar = -0.5 * np.gradient(
-        np.array([f]),
-    )[0]
+    # Aceleración efectiva a partir del gradiente de la métrica
+    ar = -0.5 * df_dr
 
     return [
-
         vr,
-
         ar,
-
     ]
 
 # ----------------------------------------------------------
@@ -79,21 +78,17 @@ def geodesica_disforme(
 
     r, vr = y
 
-    f = f_disforme(
-        MASA_SOL,
-        r,
-    )
+    # Derivada numérica de la métrica disforme usando diferencias finitas centrales
+    f_mas = f_disforme(MASA_SOL, r + DR)
+    f_menos = f_disforme(MASA_SOL, r - DR)
+    df_dr = (f_mas - f_menos) / (2.0 * DR)
 
-    ar = -0.5 * np.gradient(
-        np.array([f]),
-    )[0]
+    # Aceleración efectiva bajo la hipótesis de Atracción Energética
+    ar = -0.5 * df_dr
 
     return [
-
         vr,
-
         ar,
-
     ]
 
 # ----------------------------------------------------------
@@ -113,86 +108,62 @@ def ejecutar():
     print("=" * 60)
 
     y0 = [
-
         R_INICIAL,
-
         V_RADIAL,
-
     ]
 
+    print("[INFO] Integrando geodésicas clásicas de Schwarzschild...")
     sol_s = solve_ivp(
-
         geodesica_schwarzschild,
-
         (0, TIEMPO_FINAL),
-
         y0,
-
         max_step=5,
-
     )
 
+    print("[INFO] Integrando geodésicas del modelo de Atracción Energética...")
     sol_d = solve_ivp(
-
         geodesica_disforme,
-
         (0, TIEMPO_FINAL),
-
         y0,
-
         max_step=5,
-
     )
 
+    print("[INFO] Generando gráficas de trayectorias...")
     plt.figure(figsize=(8,6))
 
     plt.plot(
-
         sol_s.t,
-
         sol_s.y[0],
-
         "--",
-
+        linewidth=2,
         label="Schwarzschild",
-
     )
 
     plt.plot(
-
         sol_d.t,
-
         sol_d.y[0],
-
         linewidth=2,
-
         label="Atracción Energética",
-
     )
 
-    plt.xlabel("Tiempo")
-
-    plt.ylabel("Radio")
-
+    plt.xlabel("Tiempo (s)")
+    plt.ylabel("Distancia Radial r (m)")
+    plt.title("Evolución Temporal de las Geodésicas Radiales")
     plt.grid(True)
-
     plt.legend()
 
     plt.tight_layout()
 
     plt.savefig(
-
         "geodesicas_disformes.png",
-
         dpi=150,
-
     )
 
     plt.close()
 
     print()
 
-    print("Archivo generado:")
+    print("[OK] Archivo generado con éxito:")
 
     print("geodesicas_disformes.png")
 
