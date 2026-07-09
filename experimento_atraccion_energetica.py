@@ -1,87 +1,83 @@
 import sympy as sp
 import time
-import os
-# Importamos el núcleo matemático que ya homologamos en la terminal
 from motor_tensorial import crear_motor_tensorial, matriz_es_cero
 
-def calcular_tensores_atraccion_energetica():
+def calcular_tensores_atraccion_energetica_optimizado():
     print("=======================================================================")
-    print(" EXTRACCIÓN DE TENSORES: TEORÍA DE LA ATRACCIÓN ENERGÉTICA")
+    print(" EXTRACCIÓN DE TENSORES (OPTIMIZADA) - ATRACCIÓN ENERGÉTICA")
     print(" Autor: Elvis Omar Nazario Espinoza")
     print("=======================================================================\n")
     
-    # 1. DEFINICIÓN DE COORDENADAS Y CONSTANTES FUNDAMENTALES (G, c, M)
     t, r, theta, phi = sp.symbols('t r theta phi')
     G, c, M = sp.symbols('G c M', positive=True)
-    K_0 = sp.symbols('K_0', positive=True) # Rigidez crítica del vacío (Escala de Planck)
+    K_0 = sp.symbols('K_0', positive=True)
     
-    # 2. DEFINICIÓN DE FUNCIONES SIMBÓLICAS ABSTRACTAS DE LA TEORÍA
-    # Para obtener las ecuaciones maestras sin asumir perfiles arbitrarios
-    A_int = sp.Function('A_int')(r)  # Geometría modificada interior (sector temporal)
-    B_int = sp.Function('B_int')(r)  # Geometría modificada interior (sector radial)
-    T_00 = sp.Function('T_00')(r)    # Densidad de energía local efectiva
+    # Declaramos las funciones base de su modelo
+    A_int = sp.Function('A_int')(r)
+    B_int = sp.Function('B_int')(r)
+    T_00 = sp.Function('T_00')(r)
     
-    # Componentes estándar de la solución exterior de Schwarzschild
+    # Optimizador analítico: Tratamos a sigma como una función directa de r para evitar
+    # que SymPy expanda fracciones masivas con denominadores anidados durante las derivadas.
+    sigma = sp.Function('sigma')(r)
+    
     A_sch = 1 - (2 * G * M) / (c**2 * r)
     B_sch = 1 / A_sch
     
-    # Postulado P2: Parámetro de acoplamiento y Función de respuesta constitutiva sigma(E)
-    eta_r = T_00 / K_0
-    sigma_E = 1 / (1 + eta_r)
+    # Métrica parametrizada elásticamente
+    g_00_calc = -(sigma * A_sch + (1 - sigma) * A_int)
+    g_11_calc = sigma * B_sch + (1 - sigma) * B_int
+    g_22_calc = r**2
+    g_33_calc = r**2 * sp.sin(theta)**2
     
-    # Construcción Matemática de la Métrica Unificada (Ecuaciones 3 y 4 del artículo)
-    g_00_teoria = -(sigma_E * A_sch + (1 - sigma_E) * A_int)
-    g_11_teoria = sigma_E * B_sch + (1 - sigma_E) * B_int
-    g_22_teoria = r**2
-    g_33_teoria = r**2 * sp.sin(theta)**2
+    metric_components = [g_00_calc, g_11_calc, g_22_calc, g_33_calc]
     
-    metric_components = [g_00_teoria, g_11_teoria, g_22_teoria, g_33_teoria]
-    
-    print("[PROCESO] Enviando la métrica elástica unificada al Motor MGD...")
-    print(f"-> g_00 = {g_00_teoria}")
-    print(f"-> g_11 = {g_11_teoria}\n")
-    
-    # 3. COMPUTACIÓN SIMBÓLICA MEDIANTE EL MOTOR HOMOLOGADO
+    print("[PROCESO] Calculando tensores analíticos con desacoplamiento funcional...")
     t_inicio = time.time()
-    G_tensor, R_escalar = crear_motor_tensorial(metric_components, nombre_cache="cache_atraccion_energetica")
+    G_tensor, R_escalar = crear_motor_tensorial(metric_components, nombre_cache=None)
+    
+    # Postulado P2: Definición real de la función constitutiva de su artículo
+    eta_real = T_00 / K_0
+    sigma_real = 1 / (1 + eta_real)
+    
+    # SUSTITUCIÓN DE RETORNO: Inyectamos la definición exacta de su teoría (P2)
+    # Reemplazamos la función sigma(r) y su derivada por las expresiones explícitas de su ecuación.
+    G_final = G_tensor.subs(sigma, sigma_real)
+    R_final = R_escalar.subs(sigma, sigma_real)
+    
+    # Reemplazamos también la derivada formal de sigma(r) respecto a r
+    derivada_sigma_real = sp.diff(sigma_real, r)
+    G_final = G_final.subs(sp.diff(sigma, r), derivada_sigma_real)
+    R_final = R_final.subs(sp.diff(sigma, r), derivada_sigma_real)
+    
     t_fin = time.time()
-    
-    print(f"✔ [ÉXITO] Ecuaciones analíticas calculadas en {t_fin - t_inicio:.2f} segundos.")
+    print(f"✔ [ÉXITO] Ecuaciones analíticas extraídas en {t_fin - t_inicio:.2f} segundos.")
     print("=======================================================================")
-    print(" TENSORES RESULTANTES DE LA ATRACCIÓN ENERGÉTICA (G_mu_nu):")
+    print(" TENSORES FINALES INYECTADOS CON LA FUNCIÓN CONSTITUTIVA POSTULADA:")
     print("=======================================================================")
     
-    # Limpieza algebraica estricta elemento a elemento
-    G_limpio = G_tensor.applyfunc(lambda x: sp.together(sp.cancel(x)))
-    R_limpio = sp.together(sp.cancel(R_escalar))
+    # Aplicamos simplificación directa y limpia
+    G_limpio = G_final.applyfunc(lambda x: sp.together(sp.cancel(x)))
+    R_limpio = sp.together(sp.cancel(R_final))
     
     print("\n> ESCALAR DE RICCI ACTIVO (R):")
     sp.pprint(R_limpio)
     print("\n" + "-"*70)
     
-    print("\n> COMPONENTE TEMPORAL G[0,0] (Respuesta a la Densidad de Energía):")
+    print("\n> COMPONENTE TEMPORAL G[0,0] (Densidad de Energía Efectiva):")
     sp.pprint(G_limpio[0,0])
     print("\n" + "-"*70)
     
-    print("\n> COMPONENTE RADIAL G[1,1] (Tensión Elástica del Vacío):")
+    print("\n> COMPONENTE RADIAL G[1,1] (Tensión Elástica):")
     sp.pprint(G_limpio[1,1])
-    print("\n" + "-"*70)
-    
-    print("\n> COMPONENTE ANGULAR G[2,2]:")
-    sp.pprint(G_limpio[2,2])
     print("\n=======================================================================")
     
-    # 4. PRUEBA DE LÍMITE ASINTÓTICO (Sección 3.1 del artículo)
-    # Evaluamos el límite cuando T_00 -> 0, lo que implica eta -> 0 y sigma -> 1
-    print("\n[PROBANDO LÍMITE MACROSCÓPICO ASINTÓTICO T_00 -> 0]:")
+    print("\n[PROBANDO LÍMITE ASINTÓTICO T_00 -> 0]:")
     G_limite_vacio = G_limpio.subs(T_00, 0)
-    
     if matriz_es_cero(G_limite_vacio):
-        print("✔ EXCELENTE: Cuando T_00 -> 0, la función constitutiva satura en 1")
-        print("   y su teoría recupera matemáticamente el vacío puro de Schwarzschild (G_mu_nu = 0).")
+        print("✔ EXCELENTE: El límite T_00 -> 0 recupera perfectamente Schwarzschild.")
     else:
-        print("⚠ ATVERTENCIA: Se detectaron residuos algebraicos en el límite macroscópico.")
-    print("=======================================================================")
+        print("⚠ ADVERTENCIA: Se encontraron residuos en el límite asintótico.")
 
 if __name__ == "__main__":
-    calcular_tensores_atraccion_energetica()
+    calcular_tensores_atraccion_energetica_optimizado()
