@@ -2,9 +2,9 @@ import sympy as sp
 import time
 from motor_tensorial import crear_motor_tensorial, matriz_es_cero
 
-def calcular_tensores_rigor_analitico():
+def calcular_y_exportar_reporte_latex():
     print("=======================================================================")
-    print(" EXTRACCIÓN RIGUROSA DE TENSORES - TEORÍA DE LA ATRACCIÓN ENERGÉTICA")
+    print(" EXTRACCIÓN RIGUROSA Y EXPORTACIÓN A LATEX - ATRACCIÓN ENERGÉTICA")
     print(" Autor: Elvis Omar Nazario Espinoza")
     print("=======================================================================\n")
     
@@ -12,20 +12,15 @@ def calcular_tensores_rigor_analitico():
     G, c, M = sp.symbols('G c M', positive=True)
     K_0 = sp.symbols('K_0', positive=True)
     
-    # 1. FUNCIONES ABSTRACTAS GENERALES PARA EL MOTOR (Máximo Rigor Geométrico)
+    # 1. GEOMETRÍA ABSTRACTA BASE
     A = sp.Function('A')(r)
     B = sp.Function('B')(r)
-    
-    # Métrica exacta en su forma covariante pura
     metric_components = [-A, B, r**2, r**2 * sp.sin(theta)**2]
     
-    print("[PROCESO] Calculando el Tensor de Einstein formal exacto...")
-    t_inicio = time.time()
+    print("[PROCESO] Ejecutando cálculo tensorial subyacente...")
     G_tensor, R_escalar = crear_motor_tensorial(metric_components, nombre_cache=None)
-    t_fin = time.time()
-    print(f"✔ [ÉXITO] Estructura geométrica calculada en {t_fin - t_inicio:.2f} segundos.")
     
-    # 2. DEFINICIÓN DE LOS POSTULADOS DE TU ARTÍCULO
+    # 2. POSTULADOS DE TU ARTÍCULO
     A_int = sp.Function('A_int')(r)
     B_int = sp.Function('B_int')(r)
     T_00 = sp.Function('T_00')(r)
@@ -34,21 +29,15 @@ def calcular_tensores_rigor_analitico():
     B_sch = 1 / A_sch
     
     sigma = 1 / (1 + (T_00 / K_0))
-    
-    # Ecuaciones constitutivas unificadas de tu modelo (Ec. 3 y 4)
     A_teoria = sigma * A_sch + (1 - sigma) * A_int
     B_teoria = sigma * B_sch + (1 - sigma) * B_int
     
-    # 3. CÁLCULO DE DERIVADAS ANALÍTICAS EXACTAS MEDIANTE REGLA DE LA CADENA
-    # Calculamos rigurosamente las derivadas primeras y segundas de tu modelo
+    # Derivadas analíticas exactas por regla de la cadena
     A_p1 = sp.diff(A_teoria, r)
     A_p2 = sp.diff(A_p1, r)
     B_p1 = sp.diff(B_teoria, r)
     
-    # 4. INYECCIÓN COVARIANTE DE TU TEORÍA EN EL TENSOR DE EINSTEIN
-    print("\n[PROCESO] Acoplando las funciones constitutivas elásticas de la teoría...")
-    
-    # Sustituimos A(r), B(r) y sus derivadas por las expresiones exactas de tu modelo
+    # Sustitución de covariantes
     sustituciones = [
         (sp.diff(A, (r, 2)), A_p2),
         (sp.diff(A, r), A_p1),
@@ -57,25 +46,41 @@ def calcular_tensores_rigor_analitico():
         (B, B_teoria)
     ]
     
+    print("[PROCESO] Acoplando funciones constitutivas elásticas...")
     G_00_final = G_tensor[0,0].subs(sustituciones)
     G_11_final = G_tensor[1,1].subs(sustituciones)
     R_final = R_escalar.subs(sustituciones)
     
+    # 3. GENERACIÓN AUTOMÁTICA DEL REPORTE LATEX (.tex)
+    nombre_archivo = "reporte_tensores.tex"
+    print(f"\n[PROCESO] Exportando ecuaciones analíticas completas a '{nombre_archivo}'...")
+    
+    with open(nombre_archivo, "w", encoding="utf-8") as f:
+        f.write("% REPORTE GENERADO AUTOMÁTICAMENTE POR EL MOTOR DE GEOMETRÍA DIFERENCIAL\n")
+        f.write("\\section{Resultados Analíticos de los Tensores de Campo}\n\n")
+        f.write("A continuación se presentan las expresiones algebraicas exactas obtenidas ")
+        f.write("mediante el cálculo tensorial computacional para el modelo de Atracción Energética.\n\n")
+        
+        f.write("\\subsection{Escalar de Ricci ($R$)}\n")
+        f.write("\\begin{equation}\n")
+        f.write(sp.latex(R_final) + "\n")
+        f.write("\\end{equation}\n\n")
+        
+        f.write("\\subsection{Componente Temporal del Tensor de Einstein ($G_{00}$)}\n")
+        f.write("\\begin{style}{\\small}\n") # Añadimos entorno para prevenir desbordes de página en LaTeX
+        f.write("\\begin{equation}\n")
+        f.write(sp.latex(G_00_final) + "\n")
+        f.write("\\end{equation}\n")
+        f.write("\\end{style}\n\n")
+        
+        f.write("\\subsection{Componente Radial del Tensor de Einstein ($G_{11}$)}\n")
+        f.write("\\begin{equation}\n")
+        f.write(sp.latex(G_11_final) + "\n")
+        f.write("\\end{equation}\n")
+
     print("=======================================================================")
-    print(" COMPONENTES ANALÍTICAS EXACTAS DE TU MODELO:")
-    print("=======================================================================")
-    
-    print("\n> ESCALAR DE RICCI (R):")
-    sp.pprint(R_final)
-    print("\n" + "-"*70)
-    
-    print("\n> COMPONENTE TEMPORAL G[0,0] (Densidad de Energía Efectiva):")
-    sp.pprint(G_00_final)
-    print("\n" + "-"*70)
-    
-    print("\n> COMPONENTE RADIAL G[1,1] (Tensión Elástica del Vacío):")
-    sp.pprint(G_11_final)
+    print(f"✔ [ÉXITO] Reporte científico guardado con éxito en: {nombre_archivo}")
     print("=======================================================================")
 
 if __name__ == "__main__":
-    calcular_tensores_rigor_analitico()
+    calcular_y_exportar_reporte_latex()
