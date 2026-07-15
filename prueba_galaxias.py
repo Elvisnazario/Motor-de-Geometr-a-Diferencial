@@ -1,4 +1,4 @@
-```python
+
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
@@ -367,5 +367,3 @@ ax3.legend(frameon=True, fontsize=8)
 
 plt.savefig("pruebas_galaxias_suaves.png", dpi=300)
 plt.show()
-
-```
