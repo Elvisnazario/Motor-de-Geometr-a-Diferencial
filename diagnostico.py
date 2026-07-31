@@ -18,24 +18,26 @@ r_c   = 12.0            # Radio de escala del núcleo elástico (kpc)
 r = np.linspace(0.1, 40.0, 1000)
 
 # =====================================================================
-# 3. COMPONENTES DEL MODELO
+# 3. COMPONENTES DEL MODELO CONTINUO
 # =====================================================================
 M_b_reg = M_bar * (r**2) / (r**2 + r_0**2)
 x = r / r_c
 M_vac = 4.0 * np.pi * rho_0 * (r_c**3) * (x - np.arctan(x))
 M_eff = M_b_reg + M_vac
 
+# A(r) derivado del potencial de distribución continua
 A = 1.0 - (2.0 * G * M_eff) / ((c**2) * r)
 
-dr = r[1] - r[0]
-dA_dr = np.gradient(A, dr)
+# Gradiente métrico consistente con distribución de masa extendida: dA/dr = 2 G M_eff / (c^2 r^2)
+dA_dr = (2.0 * G * M_eff) / ((c**2) * (r**2))
 
+# Velocidad circular de la métrica: v^2 = c^2 r (dA/dr) / (2 A)
 v2 = ((c**2) * r * dA_dr) / (2.0 * A)
 v_metric = np.sqrt(np.maximum(0.0, v2))
 v_newton = np.sqrt(G * M_eff / r)
 
 # =====================================================================
-# 4. GRAFICACIÓN DE DIAGNÓSTICO (ETIQUETAS CORREGIDAS)
+# 4. GRAFICACIÓN DE DIAGNÓSTICO
 # =====================================================================
 fig, axes = plt.subplots(2, 2, figsize=(12, 8), sharex=True)
 
@@ -50,19 +52,19 @@ axes[0, 0].legend()
 # Graph 2: Métrica A(r)
 axes[0, 1].plot(r, 1 - A, 'r-')
 axes[0, 1].set_ylabel('1 - A(r)')
-axes[0, 1].set_title('2. Potencial Métrico (2GM / c^2 r)')
+axes[0, 1].set_title('2. Potencial Métrico')
 axes[0, 1].grid(True, alpha=0.3)
 
 # Graph 3: Derivada dA/dr
 axes[1, 0].plot(r, dA_dr, 'g-')
 axes[1, 0].set_xlabel('Radio r (kpc)')
 axes[1, 0].set_ylabel('dA/dr')
-axes[1, 0].set_title('3. Gradiente Métrico dA/dr')
+axes[1, 0].set_title('3. Gradiente Métrico Continuo dA/dr')
 axes[1, 0].grid(True, alpha=0.3)
 
 # Graph 4: Curva de Velocidad
-axes[1, 1].plot(r, v_metric, 'r-', linewidth=2, label='Métrica: v^2 = c^2 r (dA/dr) / 2A')
-axes[1, 1].plot(r, v_newton, 'b--', linewidth=1.5, label='Newton: v^2 = G M / r')
+axes[1, 1].plot(r, v_metric, 'r-', linewidth=2, label='Métrica Continua')
+axes[1, 1].plot(r, v_newton, 'b--', linewidth=1.5, label='Newtoniano')
 axes[1, 1].set_xlabel('Radio r (kpc)')
 axes[1, 1].set_ylabel('Velocidad v (km/s)')
 axes[1, 1].set_title('4. Curva de Rotación Resultante')
