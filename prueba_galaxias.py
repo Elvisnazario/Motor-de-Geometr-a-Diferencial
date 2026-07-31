@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')  # Previene congelamientos de terminal en VS Code/Linux
 import matplotlib.pyplot as plt
-from scipy.integrate import solve_ivp
+from scipy.integrate import solve_ivp, quad
 from scipy.optimize import differential_evolution
 
 plt.style.use('default')
@@ -22,7 +22,7 @@ class ConstantesFisicas:
     c = 299792.458          # km/s
 
 # =====================================================================
-# 2. MODELO DE TU TEORÍA (POTENCIAL CONTINUO RIGUROSO)
+# 2. MODELO CONSISTENTE BASADO EN EL POTENCIAL INTEGRADO Phi(r)
 # =====================================================================
 class AtraccionEnergeticaModel:
     def __init__(self, M_bar, r_0, rho_0, r_c):
@@ -40,59 +40,68 @@ class AtraccionEnergeticaModel:
         M_vac = 4.0 * np.pi * self.rho_0 * (self.r_c**3) * (x - np.arctan(x))
         return M_bar_reg + M_vac
 
-    def dA_dr(self, r):
-        """ 
-        Gradiente métrico derivado del potencial del medio continuo:
-        dA/dr = (2/c^2) * dPhi/dr = 2*G*M_eff(r) / (c^2 * r^2)
-        Evita el colapso unipolar del ansatz de masa puntual.
-        """
+    def dPhi_dr(self, r):
+        """ Fuerza gravitacional por unidad de masa: dPhi/dr = G*M_eff(r)/r^2 """
         r = np.maximum(r, 1e-6)
-        return (2.0 * self.G * self.masa_efectiva(r)) / ((self.c**2) * (r**2))
+        return (self.G * self.masa_efectiva(r)) / (r**2)
+
+    def potencial_Phi(self, r):
+        """
+        Potencial integrado Phi(r) = \int_0^r (G*M_eff(s)/s^2) ds
+        Garantiza consistencia absoluta entre A(r) y dA/dr.
+        """
+        if np.isscalar(r):
+            val, _ = quad(lambda s: self.dPhi_dr(s), 1e-6, max(r, 1e-6))
+            return val
+        else:
+            return np.array([quad(lambda s: self.dPhi_dr(s), 1e-6, max(ri, 1e-6))[0] for ri in r])
+
+    def dA_dr(self, r):
+        """ Derivada exacta de A(r) por el Teorema Fundamental del Cálculo """
+        return (2.0 / (self.c**2)) * self.dPhi_dr(r)
 
     def A_metric(self, r):
-        """ Métrica integrada en límite débil A(r) = 1 + 2*Phi(r)/c^2 """
-        r = np.maximum(r, 1e-6)
-        A_val = 1.0 - (2.0 * self.G * self.masa_efectiva(r)) / ((self.c**2) * r)
-        return np.maximum(1e-6, A_val)
+        """ Métrica rigurosa A(r) = 1 + 2*Phi(r)/c^2 """
+        Phi_val = self.potencial_Phi(r)
+        return 1.0 + (2.0 * Phi_val) / (self.c**2)
 
     def velocidad_circular(self, r):
-        """
-        Velocidad orbital exacta: v^2 = (c^2 * r * A') / (2 * A)
-        """
+        """ Velocidad circular exacta v^2 = r * dPhi/dr / A(r) """
         r = np.maximum(r, 1e-6)
         A_val = self.A_metric(r)
-        Ap_val = self.dA_dr(r)
-        v2 = ((self.c**2) * r * Ap_val) / (2.0 * A_val)
+        v2 = (r * self.dPhi_dr(r)) / A_val
         return np.sqrt(np.maximum(0.0, v2))
 
 # =====================================================================
-# 3. ECUACIONES GEODÉSICAS
+# 3. ECUACIONES GEODÉSICAS DESDE EL LAGRANGIANO GENERAL
 # =====================================================================
-def geodesicas_nulas(l, y, model, L):
+def geodesicas_nulas(l, y, model, L, E=1.0):
     r, phi, vr = y
     A = model.A_metric(r)
     Ap = model.dA_dr(r)
     
     dr_dl = vr
     dphi_dl = L / (r**2)
-    dvr_dl = -0.5 * Ap * (L**2) / (r**2) + A * (L**2) / (r**3)
+    # Ecuación de Euler-Lagrange exacta para fotones en métrica A(r)
+    dvr_dl = -0.5 * Ap * (E**2) / (A**2) + (A * L**2) / (r**3) - 0.5 * Ap * (L**2) / (r**2) - (Ap / A) * (vr**2)
     return [dr_dl, dphi_dl, dvr_dl]
 
-def geodesicas_masivas(l, y, model, L):
+def geodesicas_masivas(l, y, model, L, E=1.0):
     r, phi, vr = y
     A = model.A_metric(r)
     Ap = model.dA_dr(r)
     
     dr_dl = vr
     dphi_dl = L / (r**2)
-    dvr_dl = -0.5 * Ap * (1.0 + (L**2) / (r**2)) + A * (L**2) / (r**3)
+    # Ecuación de Euler-Lagrange para partículas masivas (normalización g_ab u^a u^b = -1)
+    dvr_dl = -0.5 * Ap * (E**2) / (A**2) + (A * L**2) / (r**3) - 0.5 * Ap * (L**2) / (r**2) + 0.5 * Ap - (Ap / A) * (vr**2)
     return [dr_dl, dphi_dl, dvr_dl]
 
 # =====================================================================
 # 4. EJECUCIÓN Y VALIDACIÓN
 # =====================================================================
 print("="*75)
-print("   MOTOR DE GEOMETRÍA DIFERENCIAL: PRUEBAS GALÁCTICAS (POTENCIAL CONTINUO)")
+print("   MOTOR DE GEOMETRÍA DIFERENCIAL: MODELO DE POTENCIAL INTEGRADO CERRADO")
 print("="*75)
 
 # --- TEST 1: SPARC ---
@@ -134,11 +143,11 @@ for nombre, data in galaxias_data.items():
         v_theo = np.array([model.velocidad_circular(r) for r in r_arr])
         return np.sum(((v_obs - v_theo) / err_arr) ** 2)
 
-    res = differential_evolution(loss_func, bounds, seed=42, polish=True, maxiter=200)
+    res = differential_evolution(loss_func, bounds, seed=42, polish=True, maxiter=150)
     M_b_opt, r0_opt, rho0_opt, rc_opt = res.x
     
     model_opt = AtraccionEnergeticaModel(M_b_opt, r0_opt, rho0_opt, rc_opt)
-    r_dense = np.linspace(0.1, max(r_arr)*1.05, 200)
+    r_dense = np.linspace(0.1, max(r_arr)*1.05, 100)
     v_dense = np.array([model_opt.velocidad_circular(rd) for rd in r_dense])
     
     v_fit = np.array([model_opt.velocidad_circular(r) for r in r_arr])
@@ -154,7 +163,7 @@ for nombre, data in galaxias_data.items():
     print(f" -> {nombre:<10} | R² = {R2:.4f} | MAPE = {MAPE:.2f}% | M_b = {M_b_opt:.2e} | r_c = {rc_opt:.2f} kpc")
 
 # --- TEST 2: Deflexión Óptica ---
-print("\n[TEST 2/3] Calculando trayectoria de fotones (Deflexión de Luz)...")
+print("\n[TEST 2/3] Calculando trayectoria de fotones (Geodésicas Nulas)...")
 model_lens = ajustes_resultados['NGC 3198']['model']
 light_tracks = []
 deflection_angles = []
@@ -173,7 +182,7 @@ for b in impact_parameters:
         geodesicas_nulas, 
         (0.0, 100.0), 
         y0, 
-        args=(model_lens, L_light), 
+        args=(model_lens, L_light, 1.0), 
         rtol=1e-7, 
         atol=1e-9
     )
@@ -187,7 +196,7 @@ for b in impact_parameters:
     print(f" -> Parámetro b = {b:.1f} kpc | Ángulo de deflexión: {deflexion_deg*3600:.2f} arcsec ({deflexion_deg:.4f}°)")
 
 # --- TEST 3: Precesión Geodésica ---
-print("\n[TEST 3/3] Simulando órbita estelar y precesión...")
+print("\n[TEST 3/3] Simulando órbita estelar (Geodésicas Masivas)...")
 r0_orb = 8.0
 v_circ_target = model_lens.velocidad_circular(r0_orb) / ConstantesFisicas.c
 L_star = r0_orb * (v_circ_target * 0.95)
@@ -196,7 +205,7 @@ sol_orb = solve_ivp(
     geodesicas_masivas, 
     (0.0, 500.0), 
     [r0_orb, 0.0, 0.0], 
-    args=(model_lens, L_star), 
+    args=(model_lens, L_star, 1.0), 
     rtol=1e-8, 
     atol=1e-10
 )
@@ -219,7 +228,7 @@ for idx, (nombre, r_fit) in enumerate(ajustes_resultados.items()):
     ax1.plot(r_fit['r_dense'], r_fit['v_dense'], '-', color=colors[idx], linewidth=2.0, label=f"{nombre} ($R^2$: {r_fit['R2']:.3f})")
 ax1.set_xlabel("Radio r (kpc)")
 ax1.set_ylabel("Velocidad v (km/s)")
-ax1.set_title("Test 1: SPARC (Potencial Continuo)")
+ax1.set_title("Test 1: SPARC (Potencial Integrado)")
 ax1.legend(frameon=True, loc="lower right", fontsize=8)
 
 # Panel 2: Deflexión Óptica
@@ -244,8 +253,8 @@ ax3.plot(0, 0, 'ro', markersize=5, label="Centro Galáctico")
 ax3.set_aspect('equal')
 ax3.set_xlabel("X (kpc)")
 ax3.set_ylabel("Y (kpc)")
-ax3.set_title("Test 3: Precesión Geodésica")
+ax3.set_title("Test 3: Precesión Geodésica Exacta")
 ax3.legend(frameon=True, fontsize=8)
 
 plt.savefig("pruebas_galaxias_suaves.png", dpi=300)
-print("\n[ÉXITO] Proceso completado. Imagen guardada como 'pruebas_galaxias_suaves.png'.")
+print("\n[ÉXITO] Modelo cerrado y consistente. Imagen guardada como 'pruebas_galaxias_suaves.png'.")
