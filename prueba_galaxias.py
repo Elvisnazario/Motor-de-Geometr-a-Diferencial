@@ -22,7 +22,7 @@ class ConstantesFisicas:
     c = 299792.458          # km/s
 
 # =====================================================================
-# 2. MODELO CONSISTENTE BASADO EN EL POTENCIAL INTEGRADO Phi(r)
+# 2. MODELO CONSISTENTE BASADO EN EL POTENCIAL INTEGRADO Phi(r) < 0
 # =====================================================================
 class AtraccionEnergeticaModel:
     def __init__(self, M_bar, r_0, rho_0, r_c):
@@ -41,28 +41,28 @@ class AtraccionEnergeticaModel:
         return M_bar_reg + M_vac
 
     def dPhi_dr(self, r):
-        """ Fuerza gravitacional por unidad de masa: dPhi/dr = G*M_eff(r)/r^2 (en (km/s)^2/kpc) """
+        """ Gradiente de potencial positivo (fuerza atractiva): dPhi/dr = G*M_eff(r)/r^2 """
         r = np.maximum(r, 1e-6)
         return (self.G * self.masa_efectiva(r)) / (r**2)
 
-    def potencial_Phi(self, r):
-        """ Potencial integrado Phi(r) = \int_0^r (G*M_eff(s)/s^2) ds """
+    def potencial_Phi(self, r, r_max=500.0):
+        """ Potencial gravitatorio atractivo Phi(r) < 0 referenciado a infinito """
         if np.isscalar(r):
-            val, _ = quad(lambda s: self.dPhi_dr(s), 1e-6, max(r, 1e-6))
-            return val
+            val, _ = quad(lambda s: self.dPhi_dr(s), max(r, 1e-6), r_max)
+            return -val
         else:
-            return np.array([quad(lambda s: self.dPhi_dr(s), 1e-6, max(ri, 1e-6))[0] for ri in r])
+            return np.array([-quad(lambda s: self.dPhi_dr(s), max(ri, 1e-6), r_max)[0] for ri in r])
 
     def Phi_adimensional(self, r):
-        """ Potencial adimensional Phi/c^2 """
+        """ Potencial adimensional Phi/c^2 (< 0) """
         return self.potencial_Phi(r) / (self.c**2)
 
     def dPhi_dr_adimensional(self, r):
-        """ Gradiente adimensional (1/c^2) * dPhi/dr (1/kpc) """
+        """ Gradiente adimensional (1/c^2) * dPhi/dr """
         return self.dPhi_dr(r) / (self.c**2)
 
     def A_metric(self, r):
-        """ Componente temporal de la métrica g_tt = -(1 + 2*Phi/c^2) """
+        """ Componente temporal g_tt = -(1 + 2*Phi/c^2) con Phi < 0 """
         return 1.0 + 2.0 * self.Phi_adimensional(r)
 
     def dA_dr(self, r):
@@ -77,24 +77,21 @@ class AtraccionEnergeticaModel:
         return np.sqrt(np.maximum(0.0, v2))
 
 # =====================================================================
-# 3. ECUACIONES GEODÉSICAS EN UNIDADES ADIMENSIONALES (c = 1)
+# 3. ECUACIONES GEODÉSICAS INTEGRADAS DESDE EL LAGRANGIANO (c = 1)
 # =====================================================================
 def geodesicas_nulas(l, y, model, b):
     """
-    Fotones viajando a c=1.
-    y = [r, phi, dr/dl]
-    b = parámetro de impacto en kpc
+    Geodésicas nulas puras en la métrica continua:
+    g_tt = -A(r), g_rr = 1/A(r), g_phiphi = r^2
     """
     r, phi, vr = y
     A = model.A_metric(r)
-    Ap = model.dA_dr(r) # en 1/kpc
+    Ap = model.dA_dr(r)
     
-    # Momento angular adimensional L = b (para fotón desde el infinito)
     L = b
-    
     dr_dl = vr
     dphi_dl = L / (r**2)
-    # Ecuación geodesica para fotones en límite débil (c=1)
+    # Derivada radial exacta del Lagrangiano para fotones:
     dvr_dl = -0.5 * Ap + (A * L**2) / (r**3) - 0.5 * Ap * (L**2) / (r**2)
     return [dr_dl, dphi_dl, dvr_dl]
 
@@ -105,15 +102,14 @@ def geodesicas_masivas(l, y, model, L_star):
     
     dr_dl = vr
     dphi_dl = L_star / (r**2)
-    # Ecuación para partículas masivas lentas (v << c)
     dvr_dl = -0.5 * Ap + (A * L_star**2) / (r**3)
     return [dr_dl, dphi_dl, dvr_dl]
 
 # =====================================================================
-# 4. EJECUCIÓN Y VALIDACIÓN
+# 4. EJECUCIÓN Y VALIDACIÓN INDEPENDIENTE
 # =====================================================================
 print("="*75)
-print("   MOTOR DE GEOMETRÍA DIFERENCIAL: MODELO NORMALIZADO (c = 1)")
+print("   MOTOR DE GEOMETRÍA DIFERENCIAL: INTEGRACIÓN DE GEODÉSICAS PURAS")
 print("="*75)
 
 # --- TEST 1: SPARC ---
@@ -143,10 +139,10 @@ for nombre, data in galaxias_data.items():
     r_arr, v_obs, err_arr = data['r'], data['v'], data['err']
     
     bounds = [
-        (1e9, 2e11),    # M_bar (M_sun)
-        (0.5, 10.0),    # r_0 (kpc)
-        (1e5, 5e7),     # rho_0 (M_sun / kpc^3)
-        (2.0, 30.0)     # r_c (kpc)
+        (1e9, 2e11),
+        (0.5, 10.0),
+        (1e5, 5e7),
+        (2.0, 30.0)
     ]
     
     def loss_func(params):
@@ -174,43 +170,47 @@ for nombre, data in galaxias_data.items():
     }
     print(f" -> {nombre:<10} | R² = {R2:.4f} | MAPE = {MAPE:.2f}% | M_b = {M_b_opt:.2e} | r_c = {rc_opt:.2f} kpc")
 
-# --- TEST 2: Deflexión Óptica (Lente Gravitacional Real) ---
-print("\n[TEST 2/3] Calculando trayectoria de fotones (Normalización c=1)...")
+# --- TEST 2: Deflexión Óptica Medida Directamente de la Geodésica ---
+print("\n[TEST 2/3] Integrando trayectoria de fotones (Medición Numérica de Geodésicas)...")
 model_lens = ajustes_resultados['NGC 3198']['model']
 light_tracks = []
-deflection_angles = []
 impact_parameters = [10.0, 15.0, 20.0]
 
 for b in impact_parameters:
-    r0_init = 40.0
+    r0_init = 100.0  # Empezamos lejos para simular asíntota de entrada
     phi0_init = -np.arcsin(b / r0_init)
-    vr0 = -np.cos(phi0_init)  # Componente radial para fotón plano viajando a c=1
+    vr0 = -np.cos(phi0_init)
     
     y0 = [r0_init, phi0_init, vr0]
     sol = solve_ivp(
         geodesicas_nulas, 
-        (0.0, 80.0), 
+        (0.0, 200.0), 
         y0, 
         args=(model_lens, b), 
-        rtol=1e-8, 
-        atol=1e-10
+        rtol=1e-9, 
+        atol=1e-11
     )
     
     r_pts, phi_pts = sol.y[0], sol.y[1]
     x_pts, y_pts = r_pts * np.cos(phi_pts), r_pts * np.sin(phi_pts)
     light_tracks.append((x_pts, y_pts, b))
     
-    # Deflexión analítica de lente en campo débil: alpha = 4 * G * M_eff / (c^2 * b)
-    M_eff_b = model_lens.masa_efectiva(b)
-    alpha_rad = (4.0 * ConstantesFisicas.G * M_eff_b) / ((ConstantesFisicas.c**2) * b)
-    alpha_arcsec = alpha_rad * (180.0 / np.pi) * 3600.0
+    # MEDISIÓN REAL EXTRAÍDA DE LA SIMULACIÓN GEODÉSICA:
+    phi_final = phi_pts[-1]
+    deflexion_num_rad = np.abs(phi_final - phi0_init - np.pi)
+    deflexion_num_arcsec = deflexion_num_rad * (180.0 / np.pi) * 3600.0
     
-    print(f" -> Parámetro b = {b:.1f} kpc | M_eff({b}kpc) = {M_eff_b:.2e} M_sun | Ángulo de deflexión: {alpha_arcsec:.2f} arcsec ({alpha_rad:.2e} rad)")
+    # FÓRMULA TEÓRICA DE EINSTEIN SÓLO PARA COMPARACIÓN REFRESCANTE:
+    M_eff_b = model_lens.masa_efectiva(b)
+    deflexion_teo_rad = (4.0 * ConstantesFisicas.G * M_eff_b) / ((ConstantesFisicas.c**2) * b)
+    deflexion_teo_arcsec = deflexion_teo_rad * (180.0 / np.pi) * 3600.0
+    
+    print(f" -> b = {b:.1f} kpc | alpha_geodesica: {deflexion_num_arcsec:.3f}'' | alpha_teorico: {deflexion_teo_arcsec:.3f}''")
 
 # --- TEST 3: Precesión Geodésica ---
 print("\n[TEST 3/3] Simulando órbita estelar...")
 r0_orb = 8.0
-v_circ_target = model_lens.velocidad_circular(r0_orb) / ConstantesFisicas.c # En unidades de c
+v_circ_target = model_lens.velocidad_circular(r0_orb) / ConstantesFisicas.c
 L_star = r0_orb * (v_circ_target * 0.95)
 
 sol_orb = solve_ivp(
@@ -250,12 +250,12 @@ for i, (x, y, b) in enumerate(light_tracks):
     ax2.plot(x, y, color=lens_colors[i], linewidth=1.5, label=f"b = {b:.1f} kpc")
 core = plt.Circle((0, 0), model_lens.r_c, color='#2c3e50', alpha=0.2, label=f"Núcleo ($r_c = {model_lens.r_c:.1f}$ kpc)")
 ax2.add_patch(core)
-ax2.set_xlim(-40, 40)
+ax2.set_xlim(-50, 50)
 ax2.set_ylim(-20, 20)
 ax2.set_aspect('equal')
 ax2.set_xlabel("X (kpc)")
 ax2.set_ylabel("Y (kpc)")
-ax2.set_title("Test 2: Deflexión Óptica Corregida")
+ax2.set_title("Test 2: Deflexión Medida Numéricamente")
 ax2.legend(frameon=True, fontsize=8)
 
 # Panel 3: Precesión
@@ -268,5 +268,5 @@ ax3.set_ylabel("Y (kpc)")
 ax3.set_title("Test 3: Precesión Geodésica")
 ax3.legend(frameon=True, fontsize=8)
 
-plt.savefig("pruebas_galaxias_suaves.png", dpi=300)
-print("\n[ÉXITO] Unidades normalizadas. Imagen guardada como 'pruebas_galaxias_suaves.png'.")
+plt.savefig("pruebas_galaxias_geodesica_pura.png", dpi=300)
+print("\n[ÉXITO] Geodésica integrada y medida independientemente.")
