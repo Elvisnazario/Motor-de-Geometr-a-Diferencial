@@ -20,13 +20,13 @@ Autor:
 """
 
 import sys
-from pathlib import Path
+import os
 import sympy as sp
 
-# Agrega la raíz del proyecto (Motor-de-Geometr-a-Diferencial) a sys.path
-RAIZ_PROYECTO = Path(__file__).resolve().parent.parent.parent
-if str(RAIZ_PROYECTO) not in sys.path:
-    sys.path.insert(0, str(RAIZ_PROYECTO))
+# Fuerza a Python a reconocer el directorio actual de ejecución como raíz
+RUTA_RAIZ = os.getcwd()
+if RUTA_RAIZ not in sys.path:
+    sys.path.insert(0, RUTA_RAIZ)
 
 from experimentos.campo_escalar import CampoEscalar
 
