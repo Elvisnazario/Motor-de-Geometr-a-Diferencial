@@ -19,9 +19,16 @@ Autor:
     Elvis Omar Nazario Espinoza
 """
 
+import sys
+from pathlib import Path
 import sympy as sp
 
-from fisica.campo_escalar import CampoEscalar
+# Asegura que la raíz del proyecto esté en sys.path al ejecutar directamente el script
+RAIZ_PROYECTO = Path(__file__).resolve().parent.parent.parent
+if str(RAIZ_PROYECTO) not in sys.path:
+    sys.path.insert(0, str(RAIZ_PROYECTO))
+
+from experimentos.campo_escalar import CampoEscalar
 
 
 class KleinGordon(CampoEscalar):
