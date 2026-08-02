@@ -20,13 +20,15 @@ Autor:
 """
 
 import sys
-import os
+from pathlib import Path
 import sympy as sp
 
-# Fuerza a Python a reconocer el directorio actual de ejecución como raíz
-RUTA_RAIZ = os.getcwd()
-if RUTA_RAIZ not in sys.path:
-    sys.path.insert(0, RUTA_RAIZ)
+# Obtener la ruta absoluta de la raíz del proyecto subiendo 3 niveles desde este archivo
+# klein_gordon.py -> cuantica/ -> fisica/ -> Motor-de-Geometr-a-Diferencial/
+RAIZ_PROYECTO = Path(__file__).resolve().parent.parent.parent
+
+if str(RAIZ_PROYECTO) not in sys.path:
+    sys.path.insert(0, str(RAIZ_PROYECTO))
 
 from experimentos.campo_escalar import CampoEscalar
 
