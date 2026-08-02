@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 import sympy as sp
 
-# Asegura que la raíz del proyecto esté en sys.path al ejecutar directamente el script
+# Agrega la raíz del proyecto (Motor-de-Geometr-a-Diferencial) a sys.path
 RAIZ_PROYECTO = Path(__file__).resolve().parent.parent.parent
 if str(RAIZ_PROYECTO) not in sys.path:
     sys.path.insert(0, str(RAIZ_PROYECTO))
