@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 import sympy as sp
 
-# Apunta correctamente a la raíz subiendo desde cuantica -> fisica -> raíz
+# Sube 2 niveles para encontrar la raíz del proyecto (cuantica -> fisica -> raíz)
 RAIZ_PROYECTO = Path(__file__).resolve().parent.parent.parent
 if str(RAIZ_PROYECTO) not in sys.path:
     sys.path.insert(0, str(RAIZ_PROYECTO))
