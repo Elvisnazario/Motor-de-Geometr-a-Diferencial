@@ -23,12 +23,12 @@ import sys
 from pathlib import Path
 import sympy as sp
 
-# Sube 2 niveles para encontrar la raíz del proyecto (cuantica -> fisica -> raíz)
+# Agrega la raíz del proyecto al sys.path
 RAIZ_PROYECTO = Path(__file__).resolve().parent.parent.parent
 if str(RAIZ_PROYECTO) not in sys.path:
     sys.path.insert(0, str(RAIZ_PROYECTO))
 
-from experimentos.campo_escalar import CampoEscalar
+from fisica.experimentos.campo_escalar import CampoEscalar
 
 
 class KleinGordon(CampoEscalar):
