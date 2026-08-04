@@ -19,19 +19,10 @@ Autor:
     Elvis Omar Nazario Espinoza
 """
 
-import sys
-from pathlib import Path
 import sympy as sp
 
-# Navega desde la ubicación actual hasta la carpeta donde está 'experimentos'
-DIRECTORIO_ACTUAL = Path(__file__).resolve().parent
-RAIZ_FISICA = DIRECTORIO_ACTUAL.parent
-
-if str(RAIZ_FISICA) not in sys.path:
-    sys.path.insert(0, str(RAIZ_FISICA))
-
-# Importa directamente desde el directorio 'experimentos' estando dentro de 'fisica'
-from experimentos.campo_escalar import CampoEscalar
+# Importación correcta
+from fisica.campo_escalar import CampoEscalar
 
 
 class KleinGordon(CampoEscalar):
@@ -63,7 +54,6 @@ class KleinGordon(CampoEscalar):
     # --------------------------------------------------
 
     def ecuaciones(self, metrica):
-
         """
         Devuelve
 
@@ -71,21 +61,13 @@ class KleinGordon(CampoEscalar):
         """
 
         return sp.simplify(
-
             self.operador_dalembert(metrica)
-
-            +
-
-            self.masa**2
-
-            * self.phi
-
+            + self.masa**2 * self.phi
         )
 
     # --------------------------------------------------
 
     def lagrangiano(self):
-
         """
         Densidad lagrangiana formal.
 
@@ -107,14 +89,6 @@ class KleinGordon(CampoEscalar):
 
     def __repr__(self):
 
-        return (
-
-            "KleinGordon("
-
-            f"masa={self.masa}"
-
-            ")"
-
-        )
+        return f"KleinGordon(masa={self.masa})"
 
     __str__ = __repr__
