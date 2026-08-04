@@ -23,12 +23,15 @@ import sys
 from pathlib import Path
 import sympy as sp
 
-# Agrega la raíz del proyecto al sys.path
-RAIZ_PROYECTO = Path(__file__).resolve().parent.parent.parent
-if str(RAIZ_PROYECTO) not in sys.path:
-    sys.path.insert(0, str(RAIZ_PROYECTO))
+# Navega desde la ubicación actual hasta la carpeta donde está 'experimentos'
+DIRECTORIO_ACTUAL = Path(__file__).resolve().parent
+RAIZ_FISICA = DIRECTORIO_ACTUAL.parent
 
-from fisica.experimentos.campo_escalar import CampoEscalar
+if str(RAIZ_FISICA) not in sys.path:
+    sys.path.insert(0, str(RAIZ_FISICA))
+
+# Importa directamente desde el directorio 'experimentos' estando dentro de 'fisica'
+from experimentos.campo_escalar import CampoEscalar
 
 
 class KleinGordon(CampoEscalar):
